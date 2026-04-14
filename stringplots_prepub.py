@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
+def wide_space_default():
+st.set_page_config(layout=“wide”)
+
+wide_space_default()
+
 st.title("Interactive Iron Biomarker String Plots")
 
 # CSV loading
