@@ -7,13 +7,14 @@ st.title("Interactive Iron Biomarker String Plots")
 # CSV loading
 uploaded_file = st.file_uploader("Upload Patient CSV")
 
-if uploaded_file is not None:
+if uploaded_file is None:
+    st.stop()
 
-    # -----------------------------
-    # LOAD DATA
-    # -----------------------------
-    df = pd.read_csv(uploaded_file)
-    df.columns = df.columns.str.strip()
+# -----------------------------
+# LOAD DATA
+# -----------------------------
+df = pd.read_csv(uploaded_file)
+df.columns = df.columns.str.strip()
 
 st.sidebar.header("Global Filters")
 
@@ -61,15 +62,21 @@ display_labels = {
 # Convert biomarker columns to numeric
 for b in biomarkers:
     df[b] = pd.to_numeric(df[b], errors="coerce")
+
 df["Age.at.screening"] = pd.to_numeric(df["Age.at.screening"], errors="coerce")
+
 df = df.dropna(subset=biomarkers + ["Age.at.screening", "SEQN.Respondent.Sequence.Number"])
 
-# Sorting options
-st.sidebar.header("Sorting")
-sort_biomarker = st.sidebar.selectbox(
+# Sorting options (UPDATED)
+biomarker_display_map = {v: k for k, v in display_labels.items()}
+
+sort_biomarker_display = st.sidebar.selectbox(
     "Sort cases by",
-    biomarkers
+    list(display_labels.values())
 )
+
+sort_biomarker = biomarker_display_map[sort_biomarker_display]
+
 sort_order = st.sidebar.radio(
     "Order",
     ["Ascending", "Descending"]
@@ -77,15 +84,21 @@ sort_order = st.sidebar.radio(
 
 # Apply global filters
 filtered_df = df.copy()
+
 filtered_df = filtered_df[
-    (filtered_df["Age.at.screening"] >= age_min) & (filtered_df["Age.at.screening"] <= age_max)
+    (filtered_df["Age.at.screening"] >= age_min) &
+    (filtered_df["Age.at.screening"] <= age_max)
 ]
 
 if sex_filter != "All":
-    filtered_df = filtered_df[filtered_df["Gender..1M..2F."] == sex_filter]
+    gender_map = {"Male": 1, "Female": 2}
+    filtered_df = filtered_df[
+        filtered_df["Gender..1M..2F."] == gender_map[sex_filter]
+    ]
 
 # Biomarker thresholding
 st.sidebar.header("Biomarker Filters & Thresholds")
+
 biomarker_ranges = {}
 biomarker_thresholds = {}
 additional_lines = {}
@@ -95,17 +108,21 @@ for b in biomarkers:
     max_val_default = float(df[b].max())
 
     st.sidebar.subheader(display_labels[b])
+
     min_val = st.sidebar.number_input(
         f"Min {display_labels[b]}",
         value=min_val_default,
         min_value=min_val_default,
-        max_value=max_val_default
+        max_value=max_val_default,
+        key=f"min_{b}"
     )
+
     max_val = st.sidebar.number_input(
         f"Max {display_labels[b]}",
         value=max_val_default,
         min_value=min_val_default,
-        max_value=max_val_default
+        max_value=max_val_default,
+        key=f"max_{b}"
     )
 
     if min_val > max_val:
@@ -114,14 +131,18 @@ for b in biomarkers:
 
     threshold = st.sidebar.number_input(
         f"{display_labels[b]} threshold (points ≤ threshold = red in all plots)",
-        value=float(min_val_default)
+        value=float(min_val_default),
+        key=f"thresh_{b}"
     )
+
     biomarker_thresholds[b] = threshold
 
     line_input = st.sidebar.text_input(
         f"Additional horizontal lines for {display_labels[b]} (comma-separated)",
-        value=""
+        value="",
+        key=f"lines_{b}"
     )
+
     if line_input.strip():
         try:
             lines = [float(x.strip()) for x in line_input.split(",")]
@@ -130,26 +151,62 @@ for b in biomarkers:
             lines = []
     else:
         lines = []
-    additional_lines[b] = lines
 
+    additional_lines[b] = lines
     biomarker_ranges[b] = (min_val, max_val)
+
     filtered_df = filtered_df[
         (filtered_df[b] >= min_val) & (filtered_df[b] <= max_val)
     ]
 
-# Case sorting ascending/descending
+# Sorting
 ascending = True if sort_order == "Ascending" else False
 filtered_df = filtered_df.sort_values(sort_biomarker, ascending=ascending)
 filtered_df["case_order"] = range(len(filtered_df))
 
-# Red dots for cases below threshold
+# -----------------------------
+# VERTICAL LINE CONTROL
+# -----------------------------
+if "vline_pos" not in st.session_state:
+    st.session_state.vline_pos = 0
+
+st.sidebar.header("Vertical Line Control")
+
+biomarker_display_map = {v: k for k, v in display_labels.items()}
+
+selected_biomarker_display = st.sidebar.selectbox(
+    "Biomarker for positioning",
+    list(display_labels.values()),
+    key="vline_biomarker"
+)
+
+selected_biomarker_for_line = biomarker_display_map[selected_biomarker_display]
+
+input_value = st.sidebar.number_input(
+    f"Enter {display_labels[selected_biomarker_for_line]} value",
+    value=0.0,
+    key="vline_value"
+)
+
+# Map biomarker value to closest case
+if not filtered_df.empty:
+    temp_df = filtered_df.copy()
+    temp_df["distance"] = (temp_df[selected_biomarker_for_line] - input_value).abs()
+
+    closest_idx = temp_df["distance"].idxmin()
+    closest_case_order = int(filtered_df.loc[closest_idx, "case_order"])
+
+    st.session_state.vline_pos = closest_case_order
+
+# Red mask
 red_mask = pd.Series(False, index=filtered_df.index)
 for b, thresh in biomarker_thresholds.items():
     red_mask = red_mask | (filtered_df[b] <= thresh)
 
-# String plot creation
+# Plot function
 def create_plot(data, biomarker):
     plot_df = data.dropna(subset=[biomarker])
+
     colors = ["red" if red_mask.loc[idx] else "#ADD8E6" for idx in plot_df.index]
 
     fig = go.Figure()
@@ -174,10 +231,21 @@ def create_plot(data, biomarker):
         )
     )
 
-    fig.add_hline(y=biomarker_thresholds[biomarker], line_dash="dash", line_color="black")
+    fig.add_hline(
+        y=biomarker_thresholds[biomarker],
+        line_dash="dash",
+        line_color="black"
+    )
 
     for y in additional_lines[biomarker]:
         fig.add_hline(y=y, line_dash="dot", line_color="green")
+
+    # Vertical line (green)
+    fig.add_vline(
+        x=st.session_state.vline_pos,
+        line_dash="dash",
+        line_color="green"
+    )
 
     fig.update_layout(
         height=350,
@@ -188,7 +256,7 @@ def create_plot(data, biomarker):
 
     return fig
 
-# String plot orientation
+# Render plots
 for b in biomarkers:
     st.plotly_chart(create_plot(filtered_df, b), use_container_width=True)
 
