@@ -59,9 +59,7 @@ for b in biomarkers:
 df["Age.at.screening"] = pd.to_numeric(df["Age.at.screening"], errors="coerce")
 df = df.dropna(subset=biomarkers + ["Age.at.screening", "SEQN.Respondent.Sequence.Number"])
 
-# ---------------------------
-# Sorting (UPDATED SECTION)
-# ---------------------------
+# Sorting 
 st.sidebar.header("Sorting")
 
 label_to_column = {v: k for k, v in display_labels.items()}
