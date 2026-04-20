@@ -218,7 +218,7 @@ def create_plot(data, biomarker):
 
     plot_df = data.dropna(subset=[biomarker])
 
-    colors = plot_df["is_red"].map({True: "red", False: "#1F77B4"})
+    colors = plot_df["is_red"].map({True: "red", False: "#ADD8E6"})
 
     fig = go.Figure()
 
