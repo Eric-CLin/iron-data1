@@ -15,9 +15,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# -----------------------------
-# Load Data
-# -----------------------------
+# CSV loading
+
 df = pd.read_csv("Full_Data_with_CRP_NA_Removed.csv")
 df.columns = df.columns.str.strip()
 
@@ -43,18 +42,16 @@ df["Age.at.screening"] = pd.to_numeric(df["Age.at.screening"], errors="coerce")
 
 df = df.dropna(subset=biomarkers + ["Age.at.screening", "SEQN.Respondent.Sequence.Number"])
 
-# -----------------------------
-# SESSION STATE INIT
-# -----------------------------
+# Default 0 value for thresholds
+
 if "thresholds" not in st.session_state:
     st.session_state.thresholds = {b: 0.0 for b in biomarkers}
 
 if "additional_lines" not in st.session_state:
     st.session_state.additional_lines = {b: [] for b in biomarkers}
 
-# -----------------------------
-# CALLBACK: single active threshold
-# -----------------------------
+# One active threshold allowed at a time
+
 def set_single_threshold(active_biomarker):
     for b in biomarkers:
         if b != active_biomarker:
@@ -66,9 +63,8 @@ def set_single_threshold(active_biomarker):
     # UX feedback
     st.toast(f"Threshold set for {display_labels[active_biomarker]} — others reset")
 
-# -----------------------------
-# SIDEBAR FILTERS
-# -----------------------------
+# Sidebar filters
+
 st.sidebar.header("Global Filters")
 
 sex_filter = st.sidebar.selectbox("Sex", ["All", "Male", "Female"])
@@ -96,9 +92,8 @@ if age_min > age_max:
     st.sidebar.error("Min Age cannot be greater than Max Age.")
     st.stop()
 
-# -----------------------------
-# SORTING
-# -----------------------------
+# Data sorting 
+
 st.sidebar.header("Sorting")
 
 label_to_column = {v: k for k, v in display_labels.items()}
@@ -109,9 +104,8 @@ sort_biomarker = label_to_column[sort_label]
 sort_order = st.sidebar.radio("Order", ["Descending", "Ascending"])
 ascending = sort_order == "Ascending"
 
-# -----------------------------
-# FILTER DATA
-# -----------------------------
+# Global filters
+
 filtered_df = df.copy()
 
 filtered_df = filtered_df[
@@ -130,9 +124,8 @@ if sex_filter != "All":
     elif sex_filter == "Female":
         filtered_df = filtered_df[filtered_df["Gender..1M..2F."] == 2]
 
-# -----------------------------
-# BIOMARKER FILTERS
-# -----------------------------
+# Biomarker filtering
+
 st.sidebar.header("Biomarker Filters & Thresholds")
 
 for b in biomarkers:
@@ -157,7 +150,7 @@ for b in biomarkers:
             key=f"{b}_max"
         )
 
-        # Threshold (with reset behavior)
+        # Threshold (with reset)
         st.number_input(
             f"{display_labels[b]} threshold (≤ = red)",
             value=st.session_state.thresholds[b],
@@ -184,9 +177,8 @@ for b in biomarkers:
         else:
             st.session_state.additional_lines[b] = []
 
-# -----------------------------
-# APPLY BIOMARKER FILTERS
-# -----------------------------
+# Biomarker filtering
+
 mask = pd.Series(True, index=df.index)
 
 for b in biomarkers:
@@ -196,24 +188,21 @@ for b in biomarkers:
 
 filtered_df = filtered_df[mask.loc[filtered_df.index]]
 
-# -----------------------------
-# SORTING
-# -----------------------------
+# Sorting
+
 filtered_df = filtered_df.sort_values(sort_biomarker, ascending=ascending)
 filtered_df["case_order"] = range(len(filtered_df))
 
-# -----------------------------
-# RED FLAG LOGIC
-# -----------------------------
+# Red case logic
+
 filtered_df["is_red"] = False
 
 for b, thresh in st.session_state.thresholds.items():
     if thresh != 0:
         filtered_df["is_red"] |= filtered_df[b] <= thresh
 
-# -----------------------------
-# PLOT FUNCTION
-# -----------------------------
+# Plot logic
+
 def create_plot(data, biomarker):
 
     plot_df = data.dropna(subset=[biomarker])
@@ -260,9 +249,8 @@ def create_plot(data, biomarker):
 
     return fig
 
-# -----------------------------
-# RENDER PLOTS
-# -----------------------------
+# Plot rendering
+
 for b in biomarkers:
     st.plotly_chart(create_plot(filtered_df, b), use_container_width=True)
 
