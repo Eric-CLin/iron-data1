@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 st.set_page_config(layout="wide")
 st.title("Patient Venn Explorer, NHANES 2017-2020 Pre-Pandemic Data")
 
-# Data file loading
+# CSV loading
 data_path = "Full_Data_with_CRP_NA_Removed.csv"
 df = pd.read_csv(data_path)
 df.columns = df.columns.str.strip()
