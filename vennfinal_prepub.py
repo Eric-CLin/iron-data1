@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 st.set_page_config(layout="wide")
 st.title("Patient Venn Explorer, NHANES 2017-2020 Pre-Pandemic Data")
 
-# CSV loading
+# Data file loading
 data_path = "Full_Data_with_CRP_NA_Removed.csv"
 df = pd.read_csv(data_path)
 df.columns = df.columns.str.strip()
@@ -18,30 +18,20 @@ FERRITIN_COLUMN = "LBDFERSI.Ferritin..ug.L."
 TSAT_COLUMN = "LBDPCT.Transferrin.Saturation.."
 HGB_COLUMN = "LBXHGB.Hemoglobin..g.dL."
 
-REQUIRED_COLUMNS = [
-    AGE_COLUMN, GENDER_COLUMN, IRON_COLUMN,
-    FERRITIN_COLUMN, TSAT_COLUMN, HGB_COLUMN
-]
-
+REQUIRED_COLUMNS = [AGE_COLUMN, GENDER_COLUMN, IRON_COLUMN, FERRITIN_COLUMN, TSAT_COLUMN, HGB_COLUMN]
 missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
 if missing:
     st.error(f"Missing required columns: {missing}")
     st.stop()
 
-# Convert numeric columns (except gender)
 for col in REQUIRED_COLUMNS:
     if col != GENDER_COLUMN:
-        df[col] = pd.to_numeric(
-            df[col].astype(str).str.replace(r"[^\d\.\-]", "", regex=True),
-            errors="coerce"
-        )
-
+        df[col] = pd.to_numeric(df[col].astype(str).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce")
 df = df.dropna(subset=REQUIRED_COLUMNS).copy()
 
-# Sidebar
+# Sidebar filters
 st.sidebar.header("Filters")
 
-# Dual input for non-age fields
 def dual_number_input(label, column, integer=False):
     min_val = float(np.floor(df[column].min()))
     max_val = float(np.ceil(df[column].max()))
@@ -61,7 +51,6 @@ def dual_number_input(label, column, integer=False):
             format="%d",
             key=f"{column}_min"
         )
-
         max_input = col2.number_input(
             f"{label} Max",
             min_value=min_val,
@@ -79,7 +68,6 @@ def dual_number_input(label, column, integer=False):
             value=min_val,
             key=f"{column}_min"
         )
-
         max_input = col2.number_input(
             f"{label} Max",
             min_value=min_val,
@@ -94,10 +82,10 @@ def dual_number_input(label, column, integer=False):
     return min_input, max_input
 
 
-# Age as integer
+# Age (INTEGER ONLY)
 age_min, age_max = dual_number_input("Age Range", AGE_COLUMN, integer=True)
 
-# Gender mapping, 1/2 to M/F
+# Gender mapping (1/2 → Male/Female)
 gender_map = {1: "Male", 2: "Female"}
 reverse_gender_map = {"Male": 1, "Female": 2}
 
@@ -112,13 +100,12 @@ selected_labels = st.sidebar.multiselect(
 
 gender_choice = [reverse_gender_map[label] for label in selected_labels]
 
-# Biomarkers as non-integers
+# Biomarker filters (keep decimals)
 hgb_min, hgb_max = dual_number_input("Hemoglobin Range (g/dL)", HGB_COLUMN)
 iron_min, iron_max = dual_number_input("Iron Range (μmol/L)", IRON_COLUMN)
 ferritin_min, ferritin_max = dual_number_input("Ferritin Range (μg/L)", FERRITIN_COLUMN)
 tsat_min, tsat_max = dual_number_input("TSAT Range (%)", TSAT_COLUMN)
 
-# Filtering
 df = df[
     (df[AGE_COLUMN] >= age_min) & (df[AGE_COLUMN] <= age_max) &
     (df[GENDER_COLUMN].isin(gender_choice)) &
@@ -129,7 +116,7 @@ if df.empty:
     st.warning("No data available for the selected filters.")
     st.stop()
 
-# Venn logic
+# Venn categories
 df["A"] = df[IRON_COLUMN].between(iron_min, iron_max)
 df["B"] = df[FERRITIN_COLUMN].between(ferritin_min, ferritin_max)
 df["C"] = df[TSAT_COLUMN].between(tsat_min, tsat_max)
@@ -163,7 +150,7 @@ for key in conditions:
 
 st.subheader(f"Cases After Filters: {len(df):,}")
 
-# Plot
+# Venn plot
 fig = go.Figure()
 
 center_x, center_y = 0.5, 0.5
@@ -223,12 +210,12 @@ for region, pos in region_positions.items():
         yanchor="middle"
     )
 
-# Exterior section labels
+# Exterior labels
 label_distance = 0.35 * fig_width
 exterior_labels = [
-    (iron_x, iron_y, f"Iron\n({iron_min}-{iron_max})"),
-    (ferritin_x, ferritin_y, f"Ferritin\n({ferritin_min}-{ferritin_max})"),
-    (tsat_x, tsat_y - 0.02 * fig_height, f"TSAT\n({tsat_min}-{tsat_max})")
+    (iron_x, iron_y, f"Iron\n({iron_min}-{iron_max} μmol/L)"),
+    (ferritin_x, ferritin_y, f"Ferritin\n({ferritin_min}-{ferritin_max} μg/L)"),
+    (tsat_x, tsat_y - 0.02 * fig_height, f"TSAT\n({tsat_min}-{tsat_max}%)")
 ]
 
 for cx, cy, text in exterior_labels:
@@ -242,7 +229,6 @@ for cx, cy, text in exterior_labels:
         font=dict(size=16, color="black"),
         xanchor="center"
     )
-
 
 # Layout
 fig.update_layout(
@@ -258,7 +244,6 @@ col1, col2, col3 = st.columns([1, 6, 1])
 with col2:
     st.plotly_chart(fig, use_container_width=False)
 
-# Table
 st.subheader(f"Cohort Size: {len(df):,}")
 selected_region = st.radio("Select Region", ["All"] + conditions, horizontal=True)
 st.dataframe(df if selected_region == "All" else df[df["Region"] == selected_region])
