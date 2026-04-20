@@ -223,6 +223,27 @@ for region, pos in region_positions.items():
         yanchor="middle"
     )
 
+# Exterior section labels
+label_distance = 0.35 * fig_width
+exterior_labels = [
+    (iron_x, iron_y, f"Iron\n({iron_min}-{iron_max})"),
+    (ferritin_x, ferritin_y, f"Ferritin\n({ferritin_min}-{ferritin_max})"),
+    (tsat_x, tsat_y - 0.02 * fig_height, f"TSAT\n({tsat_min}-{tsat_max})")
+]
+
+for cx, cy, text in exterior_labels:
+    vec = np.array([cx - center_x, cy - center_y])
+    vec = vec / np.linalg.norm(vec)
+    fig.add_annotation(
+        x=cx + vec[0] * label_distance,
+        y=cy + vec[1] * label_distance,
+        text=text,
+        showarrow=False,
+        font=dict(size=16, color="black"),
+        xanchor="center"
+    )
+
+
 # Layout
 fig.update_layout(
     width=900,
