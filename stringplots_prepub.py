@@ -6,6 +6,15 @@ st.set_page_config(layout="wide")
 
 st.title("Interactive Iron Biomarker String Plots")
 
+st.markdown(
+    """
+    <style>
+    .modebar-btn[data-title="Fullscreen"] { display: none}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # CSV loading
 df = pd.read_csv("Full_Data_with_CRP_NA_Removed.csv")
 df.columns = df.columns.str.strip()
@@ -56,7 +65,9 @@ display_labels = {
 # Convert biomarker columns to numeric
 for b in biomarkers:
     df[b] = pd.to_numeric(df[b], errors="coerce")
+
 df["Age.at.screening"] = pd.to_numeric(df["Age.at.screening"], errors="coerce")
+
 df = df.dropna(subset=biomarkers + ["Age.at.screening", "SEQN.Respondent.Sequence.Number"])
 
 # Sorting 
@@ -78,18 +89,21 @@ sort_order = st.sidebar.radio(
 
 # Apply global filters
 filtered_df = df.copy()
+
 filtered_df = filtered_df[
-    (filtered_df["Age.at.screening"] >= age_min) & (filtered_df["Age.at.screening"] <= age_max)
+    (filtered_df["Age.at.screening"] >= age_min) &
+    (filtered_df["Age.at.screening"] <= age_max)
 ]
 
 if sex_filter != "All":
     if sex_filter == "Male":
-        filtered_df = filtered_df[filtered_df["Gender..1M..2F."] == 1]
+        filtered_df = filtered_df[filtered_df["Gender..1M..2F."].astype(int) == 1]
     elif sex_filter == "Female":
-        filtered_df = filtered_df[filtered_df["Gender..1M..2F."] == 2]
+        filtered_df = filtered_df[filtered_df["Gender..1M..2F."].astype(int) == 2]
 
 # Biomarker thresholding
 st.sidebar.header("Biomarker Filters & Thresholds")
+
 biomarker_ranges = {}
 biomarker_thresholds = {}
 additional_lines = {}
@@ -98,68 +112,79 @@ for b in biomarkers:
     min_val_default = float(df[b].min())
     max_val_default = float(df[b].max())
 
-    st.sidebar.subheader(display_labels[b])
-    min_val = st.sidebar.number_input(
-        f"Min {display_labels[b]}",
-        value=min_val_default,
-        min_value=min_val_default,
-        max_value=max_val_default
-    )
-    max_val = st.sidebar.number_input(
-        f"Max {display_labels[b]}",
-        value=max_val_default,
-        min_value=min_val_default,
-        max_value=max_val_default
-    )
+    # Collapsible sections
+    with st.sidebar.expander(display_labels[b], expanded=False):
 
-    if min_val > max_val:
-        st.sidebar.error(f"Min {display_labels[b]} cannot be greater than Max {display_labels[b]}.")
-        st.stop()
+        min_val = st.number_input(
+            f"Min {display_labels[b]}",
+            value=min_val_default,
+            min_value=min_val_default,
+            max_value=max_val_default,
+            key=f"{b}_min"
+        )
 
-    threshold = st.sidebar.number_input(
-        f"{display_labels[b]} threshold (points ≤ threshold = red in all plots)",
-        value=float(min_val_default)
-    )
-    biomarker_thresholds[b] = threshold
+        max_val = st.number_input(
+            f"Max {display_labels[b]}",
+            value=max_val_default,
+            min_value=min_val_default,
+            max_value=max_val_default,
+            key=f"{b}_max"
+        )
 
-    line_input = st.sidebar.text_input(
-        f"Additional horizontal lines for {display_labels[b]} (comma-separated)",
-        value=""
-    )
-    if line_input.strip():
-        try:
-            lines = [float(x.strip()) for x in line_input.split(",")]
-        except:
-            st.sidebar.error("Invalid number format for horizontal lines.")
+        if min_val > max_val:
+            st.error(f"Min {display_labels[b]} cannot be greater than Max {display_labels[b]}.")
+            st.stop()
+
+        threshold = st.number_input(
+            f"{display_labels[b]} threshold (points ≤ threshold = red in all plots)",
+            value=0.0,
+            key=f"{b}_threshold"
+        )
+        biomarker_thresholds[b] = threshold
+
+        line_input = st.text_input(
+            f"Additional horizontal lines for {display_labels[b]} (comma-separated)",
+            value="",
+            key=f"{b}_lines"
+        )
+
+        if line_input.strip():
+            try:
+                lines = [float(x.strip()) for x in line_input.split(",")]
+            except:
+                st.error("Invalid number format for horizontal lines.")
+                lines = []
+        else:
             lines = []
-    else:
-        lines = []
-    additional_lines[b] = lines
 
-    biomarker_ranges[b] = (min_val, max_val)
+        additional_lines[b] = lines
+        biomarker_ranges[b] = (min_val, max_val)
+
+    # Apply filtering outside expander (unchanged logic)
     filtered_df = filtered_df[
-        (filtered_df[b] >= min_val) & (filtered_df[b] <= max_val)
+        (filtered_df[b] >= biomarker_ranges[b][0]) &
+        (filtered_df[b] <= biomarker_ranges[b][1])
     ]
 
-# Case sorting ascending/descending
+# Case sorting
 ascending = True if sort_order == "Ascending" else False
+
 filtered_df = filtered_df.sort_values(sort_biomarker, ascending=ascending)
 filtered_df["case_order"] = range(len(filtered_df))
 
-# Red dots for cases below threshold
-red_mask = pd.Series(False, index=filtered_df.index)
+# Red flag logic
+filtered_df["is_red"] = False
 for b, thresh in biomarker_thresholds.items():
-    red_mask = red_mask | (filtered_df[b] <= thresh)
+    if thresh != 0:
+        filtered_df["is_red"] |= filtered_df[b] <= thresh
 
-# String plot creation
+
+# Plot function
 def create_plot(data, biomarker):
+
     plot_df = data.dropna(subset=[biomarker])
 
-    local_red_mask = pd.Series(False, index=plot_df.index)
-    for b, thresh in biomarker_thresholds.items():
-        local_red_mask |= (plot_df[b] <= thresh)
-
-    colors = ["red" if local_red_mask.loc[idx] else "#ADD8E6" for idx in plot_df.index]
+    colors = plot_df["is_red"].map({True: "red", False: "#ADD8E6"})
 
     fig = go.Figure()
 
@@ -183,7 +208,12 @@ def create_plot(data, biomarker):
         )
     )
 
-    fig.add_hline(y=biomarker_thresholds[biomarker], line_dash="dash", line_color="black")
+    if biomarker_thresholds[biomarker] != 0:
+        fig.add_hline(
+            y=biomarker_thresholds[biomarker],
+            line_dash="dash",
+            line_color="black"
+        )
 
     for y in additional_lines[biomarker]:
         fig.add_hline(y=y, line_dash="dot", line_color="green")
@@ -191,11 +221,13 @@ def create_plot(data, biomarker):
     fig.update_layout(
         height=350,
         xaxis_title="Respondent Sequence Number",
+        xaxis=dict(showticklabels=False),
         yaxis_title=display_labels[biomarker],
         autosize=True
     )
 
     return fig
+
 
 # Render plots
 for b in biomarkers:
