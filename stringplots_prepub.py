@@ -17,7 +17,7 @@ st.markdown(
 
 # CSV loading
 
-df = pd.read_csv("Full_Data_with_CRP_NA_Removed.csv")
+df = pd.read_csv("Iron_Data_Na_Removed.csv")
 df.columns = df.columns.str.strip()
 
 biomarkers = [
