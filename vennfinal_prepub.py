@@ -16,7 +16,7 @@ st.markdown(
 )
 
 # Data file loading
-data_path = "Iron_Data_Na_Removed.csv"
+data_path = "Iron_Data_Na_Removed2.csv"
 df = pd.read_csv(data_path)
 df.columns = df.columns.str.strip()
 
@@ -91,7 +91,7 @@ def dual_number_input(label, column, integer=False):
     return min_input, max_input
 
 
-# Age (INTEGER ONLY)
+# Age (Integers only)
 age_min, age_max = dual_number_input("Age Range", AGE_COLUMN, integer=True)
 
 # Gender mapping (1/2 → Male/Female)
@@ -102,12 +102,18 @@ available_genders = sorted(df[GENDER_COLUMN].dropna().unique())
 gender_labels = [gender_map[g] for g in available_genders if g in gender_map]
 
 selected_labels = st.sidebar.multiselect(
-    "Gender",
+    "Sex",
     gender_labels,
     default=gender_labels
 )
 
 gender_choice = [reverse_gender_map[label] for label in selected_labels]
+
+df_age_sex = df[
+    (df[AGE_COLUMN] >= age_min) &
+    (df[AGE_COLUMN] <= age_max) &
+    (df[GENDER_COLUMN].isin(gender_choice))
+].copy()
 
 hgb_min, hgb_max = dual_number_input("Hemoglobin Range (g/dL)", HGB_COLUMN)
 
@@ -120,9 +126,11 @@ ferritin_min, ferritin_max = dual_number_input("Ferritin Range (μg/L)", FERRITI
 tsat_min, tsat_max = dual_number_input("TSAT Range (%)", TSAT_COLUMN)
 
 df = df[
-    (df[AGE_COLUMN] >= age_min) & (df[AGE_COLUMN] <= age_max) &
+    (df[AGE_COLUMN] >= age_min) &
+    (df[AGE_COLUMN] <= age_max) &
     (df[GENDER_COLUMN].isin(gender_choice)) &
-    (df[HGB_COLUMN] >= hgb_min) & (df[HGB_COLUMN] <= hgb_max)
+    (df[HGB_COLUMN] >= hgb_min) &
+    (df[HGB_COLUMN] <= hgb_max)
 ].copy()
 
 if df.empty:
@@ -135,8 +143,13 @@ df["B"] = df[FERRITIN_COLUMN].between(ferritin_min, ferritin_max)
 df["C"] = df[TSAT_COLUMN].between(tsat_min, tsat_max)
 
 df_biomarker = df[df[["A", "B", "C"]].any(axis=1)].copy()
-st.subheader(f"Cases After Global Filters: {len(df):,}")
 
+st.subheader(f"Cases After Age and Sex Filters: {len(df_age_sex):,}")
+st.subheader(f"Cases After Global Filters: {len(df):,}")
+with st.expander("What does this mean?"):
+    st.write(
+        "This represents the number of cases remaining after applying age, gender, and Hb filters. "
+    )
 st.subheader(f"Cases After Biomarker Filters: {len(df_biomarker):,}")
 
 def compute_region(row):
@@ -163,6 +176,21 @@ conditions = ["A", "B", "C", "AB", "AC", "BC", "ABC"]
 region_counts = df["Region"].value_counts().to_dict()
 for key in conditions:
     region_counts.setdefault(key, 0)
+
+# Denominator toggle
+st.sidebar.header("Percentage Settings")
+
+denom_choice = st.sidebar.radio(
+    "Percentage Denominator",
+    ["All Global Filters (Age, Gender & Hb)", "All Biomarker Filters"],
+    index=1,
+    help = "Choose population used as denominator for Venn percentages"
+)
+
+if denom_choice == "All Global Filters (Age, Gender & Hb)":
+    total_n = len(df)
+else:
+    total_n = len(df_biomarker)
 
 # Venn plot
 fig = go.Figure()
@@ -207,8 +235,6 @@ region_positions = {
     "BC": ((ferritin_x + tsat_x) / 2 + 0.07 * fig_width, (ferritin_y + tsat_y) / 2 + 0.07 * fig_height),
     "ABC": (center_x, center_y - 0.03 * fig_height)
 }
-
-total_n = len(df)
 
 for region, pos in region_positions.items():
     count = region_counts[region]
