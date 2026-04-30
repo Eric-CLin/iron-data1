@@ -146,7 +146,7 @@ st.subheader(f"Cases After Age and Sex Filters: {len(df_age_sex):,}")
 st.subheader(f"Cases After Global Filters: {len(df):,}")
 with st.expander("What does this mean?"):
     st.write(
-        "This represents the number of cases remaining after applying age, gender, and Hb filters. "
+        "This represents the number of cases remaining after applying age, sex, and Hb filters. "
     )
 st.subheader(f"Cases After Biomarker Filters: {len(df_biomarker):,}")
 
