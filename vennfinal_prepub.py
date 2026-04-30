@@ -16,7 +16,7 @@ st.markdown(
 )
 
 # Data file loading
-data_path = "Iron_Data_Na_Removed.csv"
+data_path = "Iron_Data_Na_Removed2.csv"
 df = pd.read_csv(data_path)
 df.columns = df.columns.str.strip()
 
@@ -94,20 +94,18 @@ def dual_number_input(label, column, integer=False):
 # Age (Integers only)
 age_min, age_max = dual_number_input("Age Range", AGE_COLUMN, integer=True)
 
-# Gender mapping (1/2 → Male/Female)
-gender_map = {1: "Male", 2: "Female"}
-reverse_gender_map = {"Male": 1, "Female": 2}
-
-available_genders = sorted(df[GENDER_COLUMN].dropna().unique())
-gender_labels = [gender_map[g] for g in available_genders if g in gender_map]
-
-selected_labels = st.sidebar.multiselect(
+# Sex dropdown (All / Male / Female)
+sex_filter = st.sidebar.selectbox(
     "Sex",
-    gender_labels,
-    default=gender_labels
+    ["All", "Male", "Female"]
 )
 
-gender_choice = [reverse_gender_map[label] for label in selected_labels]
+if sex_filter == "All":
+    gender_choice = [1, 2]
+elif sex_filter == "Male":
+    gender_choice = [1]
+else:
+    gender_choice = [2]
 
 df_age_sex = df[
     (df[AGE_COLUMN] >= age_min) &
@@ -182,12 +180,12 @@ st.sidebar.header("Percentage Settings")
 
 denom_choice = st.sidebar.radio(
     "Percentage Denominator",
-    ["All Global Filters (Age, Gender & Hb)", "All Biomarker Filters"],
+    ["Cases After Global Filters", "Cases After Biomarker Filters"],
     index=1,
     help = "Choose population used as denominator for Venn percentages"
 )
 
-if denom_choice == "All Global Filters (Age, Gender & Hb)":
+if denom_choice == "Cases After Global Filters":
     total_n = len(df)
 else:
     total_n = len(df_biomarker)
