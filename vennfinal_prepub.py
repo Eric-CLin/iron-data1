@@ -39,7 +39,7 @@ for col in REQUIRED_COLUMNS:
 df = df.dropna(subset=REQUIRED_COLUMNS).copy()
 
 # Sidebar filters
-st.sidebar.header("Filters")
+st.sidebar.header("Global Filters")
 
 def dual_number_input(label, column, integer=False):
     min_val = float(np.floor(df[column].min()))
@@ -102,15 +102,19 @@ available_genders = sorted(df[GENDER_COLUMN].dropna().unique())
 gender_labels = [gender_map[g] for g in available_genders if g in gender_map]
 
 selected_labels = st.sidebar.multiselect(
-    "Sex",
+    "Gender",
     gender_labels,
     default=gender_labels
 )
 
 gender_choice = [reverse_gender_map[label] for label in selected_labels]
 
-# Biomarker filters (keep decimals)
 hgb_min, hgb_max = dual_number_input("Hemoglobin Range (g/dL)", HGB_COLUMN)
+
+# Biomarker filters (keep decimals)
+
+st.sidebar.header("Biomarker Filters")
+
 iron_min, iron_max = dual_number_input("Iron Range (μmol/L)", IRON_COLUMN)
 ferritin_min, ferritin_max = dual_number_input("Ferritin Range (μg/L)", FERRITIN_COLUMN)
 tsat_min, tsat_max = dual_number_input("TSAT Range (%)", TSAT_COLUMN)
@@ -130,7 +134,10 @@ df["A"] = df[IRON_COLUMN].between(iron_min, iron_max)
 df["B"] = df[FERRITIN_COLUMN].between(ferritin_min, ferritin_max)
 df["C"] = df[TSAT_COLUMN].between(tsat_min, tsat_max)
 
-df = df[df[["A", "B", "C"]].any(axis=1)].copy()
+df_biomarker = df[df[["A", "B", "C"]].any(axis=1)].copy()
+st.subheader(f"Cases After Global Filters: {len(df):,}")
+
+st.subheader(f"Cases After Biomarker Filters: {len(df_biomarker):,}")
 
 def compute_region(row):
     if row["A"] and row["B"] and row["C"]:
@@ -156,8 +163,6 @@ conditions = ["A", "B", "C", "AB", "AC", "BC", "ABC"]
 region_counts = df["Region"].value_counts().to_dict()
 for key in conditions:
     region_counts.setdefault(key, 0)
-
-st.subheader(f"Cases After Filters: {len(df):,}")
 
 # Venn plot
 fig = go.Figure()
@@ -253,6 +258,5 @@ col1, col2, col3 = st.columns([1, 6, 1])
 with col2:
     st.plotly_chart(fig, use_container_width=False)
 
-st.subheader(f"Cohort Size: {len(df):,}")
 selected_region = st.radio("Select Region", ["All"] + conditions, horizontal=True)
 st.dataframe(df if selected_region == "All" else df[df["Region"] == selected_region])
