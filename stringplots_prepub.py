@@ -271,7 +271,7 @@ st.dataframe(filtered_df)
 
 # Case search bar 
 st.subheader("Case Lookup")
-case_search = st.text_input("Enter Case ID Number")
+case_search = st.text_input("Enter Case ID Number (Respondent Sequence Number)")
 
 # Selected case logic 
 
