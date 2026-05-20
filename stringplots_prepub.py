@@ -4,7 +4,16 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
-st.title("Interactive Iron Biomarker String Plots")
+st.title("Interactive Iron Biomarker String Plots, NHANES 2017-2020 Pre-Pandemic Data")
+
+st.markdown(
+    """
+    <style>
+    .modebar-btn[data-title="Fullscreen"] { display: none}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 st.markdown(
     """
@@ -124,6 +133,8 @@ if sex_filter != "All":
     elif sex_filter == "Female":
         filtered_df = filtered_df[filtered_df["Gender..1M..2F."] == 2]
 
+st.subheader(f"Cases After Age and Sex Filters: {len(filtered_df):,}")
+
 # Biomarker filtering
 
 st.sidebar.header("Biomarker Filters & Thresholds")
@@ -187,6 +198,8 @@ for b in biomarkers:
     mask &= df[b].between(min_val, max_val)
 
 filtered_df = filtered_df[mask.loc[filtered_df.index]]
+
+st.subheader(f"Cases After All Biomarker Filters: {len(filtered_df):,}")
 
 # Sorting
 
@@ -254,5 +267,48 @@ def create_plot(data, biomarker):
 for b in biomarkers:
     st.plotly_chart(create_plot(filtered_df, b), use_container_width=True)
 
-st.subheader(f"Cohort Size: {len(filtered_df):,}")
 st.dataframe(filtered_df)
+
+# Case search bar 
+st.subheader("Case Lookup")
+case_search = st.text_input("Enter Case ID Number")
+
+# Selected case logic 
+
+selected_case_df = pd.DataFrame()
+selected_case = None
+
+if case_search:
+    try:
+        selected_case = float(case_search)
+
+        selected_case_df = filtered_df[
+            filtered_df["SEQN.Respondent.Sequence.Number"] == selected_case
+        ]
+
+    except:
+        st.error("Invalid Case ID format.")
+
+# Selected case output table 
+
+st.subheader("Selected Case")
+
+if case_search and not selected_case_df.empty:
+
+    st.dataframe(selected_case_df)
+
+    st.markdown("### Biomarker Values for Selected Case")
+
+    biomarker_display = selected_case_df[biomarkers].T
+    biomarker_display.columns = ["Value"]
+    biomarker_display.index = biomarker_display.index.map(
+        display_labels
+    )
+
+    st.dataframe(biomarker_display)
+
+elif case_search:
+    st.warning("Case ID not found in filtered dataset.")
+
+else:
+    st.info("Enter a Case ID to view details.")
