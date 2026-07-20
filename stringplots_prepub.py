@@ -26,20 +26,20 @@ st.markdown(
 
 # CSV loading
 
-df = pd.read_csv("Iron_Data_Na_Removed.csv")
+df = pd.read_csv("Iron_Data_Na_Removed2.csv")
 df.columns = df.columns.str.strip()
 
 biomarkers = [
     "LBDIRNSI.Iron.Frozen.Serum..umol.L.",
     "LBDFERSI.Ferritin..ug.L.",
-    "LBXHGB.Hemoglobin..g.dL.",
+    "LBXHGB.Hemoglobin..g.L.",
     "LBDPCT.Transferrin.Saturation.."
 ]
 
 display_labels = {
     "LBDIRNSI.Iron.Frozen.Serum..umol.L.": "Iron μmol/L",
     "LBDFERSI.Ferritin..ug.L.": "Ferritin μg/L",
-    "LBXHGB.Hemoglobin..g.dL.": "Hemoglobin g/dL",
+    "LBXHGB.Hemoglobin..g.L.": "Hemoglobin g/L",
     "LBDPCT.Transferrin.Saturation..": "TSAT %"
 }
 
