@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
-st.title("Interactive Iron Biomarker Venn Explorer, NHANES 2017-2020 Pre-Pandemic Data")
+st.title("Patient Venn Explorer, NHANES 2017-2020 Pre-Pandemic Data")
 
 st.markdown(
     """
@@ -25,7 +25,7 @@ GENDER_COLUMN = "Gender..1M..2F."
 IRON_COLUMN = "LBDIRNSI.Iron.Frozen.Serum..umol.L."
 FERRITIN_COLUMN = "LBDFERSI.Ferritin..ug.L."
 TSAT_COLUMN = "LBDPCT.Transferrin.Saturation.."
-HGB_COLUMN = "LBXHGB.Hemoglobin..g.dL."
+HGB_COLUMN = "LBXHGB.Hemoglobin..g.L."
 
 REQUIRED_COLUMNS = [AGE_COLUMN, GENDER_COLUMN, IRON_COLUMN, FERRITIN_COLUMN, TSAT_COLUMN, HGB_COLUMN]
 missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
@@ -113,7 +113,7 @@ df_age_sex = df[
     (df[GENDER_COLUMN].isin(gender_choice))
 ].copy()
 
-hgb_min, hgb_max = dual_number_input("Hemoglobin Range (g/dL)", HGB_COLUMN)
+hgb_min, hgb_max = dual_number_input("Hemoglobin Range (g/L)", HGB_COLUMN)
 
 # Biomarker filters (keep decimals)
 
