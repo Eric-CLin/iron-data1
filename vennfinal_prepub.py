@@ -16,7 +16,7 @@ st.markdown(
 )
 
 # Data file loading
-data_path = "Iron_Data_Na_Removed2.csv"
+data_path = "Iron_Data_Na_Removed.csv"
 df = pd.read_csv(data_path)
 df.columns = df.columns.str.strip()
 
