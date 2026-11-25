@@ -30,16 +30,16 @@ df = pd.read_csv("Iron_Data_Na_Removed.csv")
 df.columns = df.columns.str.strip()
 
 biomarkers = [
-    "LBDIRNSI.Iron.Frozen.Serum..umol.L.",
     "LBDFERSI.Ferritin..ug.L.",
     "LBXHGB.Hemoglobin..g.L.",
+    "LBDIRNSI.Iron.Frozen.Serum..umol.L.",
     "LBDPCT.Transferrin.Saturation.."
 ]
 
 display_labels = {
-    "LBDIRNSI.Iron.Frozen.Serum..umol.L.": "Iron μmol/L",
     "LBDFERSI.Ferritin..ug.L.": "Ferritin μg/L",
     "LBXHGB.Hemoglobin..g.L.": "Hemoglobin g/L",
+    "LBDIRNSI.Iron.Frozen.Serum..umol.L.": "Iron μmol/L",
     "LBDPCT.Transferrin.Saturation..": "TSAT %"
 }
 
